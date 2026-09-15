@@ -137,7 +137,23 @@ async function battle(player: Player, enemy: Character): Promise<boolean> {
     dungeonFloor++;
     return true;
   } else {
-    console.log(`\n💀 Você foi derrotado... O seu legado termina aqui.`);
+    // Mecânica de Respawn e Penalidade de Derrota
+    const goldLost = Math.floor(player.gold * 0.25);
+    player.gold -= goldLost;
+    const previousFloor = dungeonFloor;
+    dungeonFloor = Math.max(1, dungeonFloor - 3);
+
+    console.log(`\n======================================================`);
+    console.log(`💀 VOCÊ FOI DERRUBADO EM COMBATE!`);
+    console.log(`Um viajante misterioso o encontrou inconsciente e o carregou de volta ao Acampamento.`);
+    console.log(`------------------------------------------------------`);
+    console.log(`💸 Penalidade de Ouro: Você perdeu 💰 ${goldLost} moedas de ouro (Saldo atual: 💰 ${player.gold}).`);
+    console.log(`📉 Recuo na Masmorra: Você recuou do Andar ${previousFloor} para o Andar ${dungeonFloor}.`);
+    console.log(`✨ O descanso forçado restaurou sua vida e sua mana.`);
+    console.log(`======================================================\n`);
+
+    // Recupera o herói para que ele possa continuar a jornada
+    player.rest();
     return false;
   }
 }
@@ -365,10 +381,8 @@ async function main() {
 
     if (choice === "explore") {
       const enemy = generateEnemy(dungeonFloor);
-      const survived = await battle(hero, enemy);
-      if (!survived) {
-        playing = false;
-      }
+      await battle(hero, enemy);
+      // Mesmo se for derrotado, o herói já renasce no acampamento com as penalidades aplicadas!
     } else if (choice === "shop") {
       await merchantShop(hero);
     } else if (choice === "train") {
