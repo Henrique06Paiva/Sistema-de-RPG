@@ -2,16 +2,27 @@ import { select, input } from "@inquirer/prompts";
 import { Character } from "./Character.js";
 import { Player } from "./Player.js";
 import { Skill } from "./Skill.js";
+import { Item } from "./Item.js";
 import { Warrior } from "./classes/Warrior.js";
 import { Mage } from "./classes/Mage.js";
 import { Tank } from "./classes/Tank.js";
 import { Assassin } from "./classes/Assassin.js";
 
-// Lista de habilidades disponíveis para comprar com o mestre
+// Habilidades disponíveis no Mestre
 const availableSkillsToBuy = [
   new Skill("Bola de Fogo", 20, 2.2, 70),
   new Skill("Golpe Devastador", 30, 3.0, 120),
   new Skill("Ataque Rápido", 10, 1.3, 30),
+];
+
+// Itens à venda na Loja do Mercador
+const availableItemsToBuy = [
+  new Item("Poção de Vida Menor", "Recupera 45 HP", 20, "health", 45),
+  new Item("Poção de Vida Média", "Recupera 80 HP", 35, "health", 80),
+  new Item("Poção de Vida Maior", "Recupera 140 HP", 60, "health", 140),
+  new Item("Poção de Mana Menor", "Restaura 35 MP", 18, "mana", 35),
+  new Item("Poção de Mana Média", "Restaura 70 MP", 30, "mana", 70),
+  new Item("Poção de Mana Maior", "Restaura 120 MP", 50, "mana", 120),
 ];
 
 // Gerador de inimigos conforme a masmorra avança
@@ -61,6 +72,7 @@ async function battle(player: Player, enemy: Character): Promise<boolean> {
         choices: [
           { name: "🗡️ Ataque Básico", value: "attack" },
           { name: "🔥 Usar Habilidade", value: "skill" },
+          { name: "🧪 Usar Item do Inventário", value: "item" },
         ],
       });
 
@@ -84,6 +96,29 @@ async function battle(player: Player, enemy: Character): Promise<boolean> {
         if (chosenIndex === -1) continue;
 
         const success = player.useSkill(chosenIndex, enemy);
+        if (success) turnEnded = true;
+      } else if (action === "item") {
+        if (player.inventory.isEmpty()) {
+          console.log("\n⚠️ Seu inventário está vazio!");
+          continue;
+        }
+
+        const itemChoices = [
+          ...player.inventory.getSlots().map((slot, index) => ({
+            name: `🧪 ${slot.item.name} (x${slot.quantity}) - ${slot.item.description}`,
+            value: index,
+          })),
+          { name: "⬅️ Voltar", value: -1 },
+        ];
+
+        const chosenItemIndex = await select({
+          message: "Escolha um item para usar:",
+          choices: itemChoices,
+        });
+
+        if (chosenItemIndex === -1) continue;
+
+        const success = player.inventory.useItem(chosenItemIndex, player);
         if (success) turnEnded = true;
       }
     }
@@ -192,6 +227,43 @@ async function trainingGrounds(player: Player) {
   }
 }
 
+// Loja do Mercador
+async function merchantShop(player: Player) {
+  let shopping = true;
+
+  while (shopping) {
+    console.log(`\n🛒 --- TENDA DO MERCADOR (Seu Ouro: 💰 ${player.gold}) ---`);
+    console.log(`"Bem-vindo, aventureiro! Tenho os melhores elixires e poções para sua jornada."`);
+
+    const choices = [
+      ...availableItemsToBuy.map((item, index) => ({
+        name: `🧪 ${item.name} | ${item.description} | Preço: 💰 ${item.price} Ouro`,
+        value: index,
+      })),
+      { name: "⬅️ Sair da Loja", value: -1 },
+    ];
+
+    const chosenIndex = await select({
+      message: "O que deseja comprar?",
+      choices,
+    });
+
+    if (chosenIndex === -1) {
+      shopping = false;
+      continue;
+    }
+
+    const selectedItem = availableItemsToBuy[chosenIndex];
+    if (player.gold >= selectedItem.price) {
+      player.gold -= selectedItem.price;
+      player.inventory.addItem(selectedItem, 1);
+      console.log(`💰 Você pagou ${selectedItem.price} de ouro. Saldo restante: 💰 ${player.gold}`);
+    } else {
+      console.log(`\n❌ Ouro insuficiente! O item custa 💰 ${selectedItem.price}, mas você só tem 💰 ${player.gold}.`);
+    }
+  }
+}
+
 // Menu da Ficha do Personagem
 function showCharacterSheet(player: Player) {
   console.log(`\n================ FICHA DO HERÓI ================`);
@@ -205,6 +277,14 @@ function showCharacterSheet(player: Player) {
   console.log(`💰 Ouro: ${player.gold}`);
   console.log(`\n📖 Habilidades Dominadas:`);
   player.skills.forEach((s) => console.log(`   - ${s.getDetails()}`));
+  console.log(`\n🎒 Mochila / Inventário:`);
+  if (player.inventory.isEmpty()) {
+    console.log(`   (Mochila vazia)`);
+  } else {
+    player.inventory.getSlots().forEach((slot) => {
+      console.log(`   - 🧪 ${slot.item.name} (x${slot.quantity}) [${slot.item.description}]`);
+    });
+  }
   console.log(`=================================================\n`);
 }
 
@@ -275,6 +355,7 @@ async function main() {
       message: "O que deseja fazer no acampamento?",
       choices: [
         { name: "🌲 Explorar a Masmorra (Batalhar)", value: "explore" },
+        { name: "🛒 Tenda do Mercador (Comprar Poções)", value: "shop" },
         { name: "🏛️ Área de Treinamento (Habilidades)", value: "train" },
         { name: "🏕️ Descansar na Fogueira (Restaurar HP/MP)", value: "rest" },
         { name: "📜 Ver Ficha do Herói", value: "stats" },
@@ -288,6 +369,8 @@ async function main() {
       if (!survived) {
         playing = false;
       }
+    } else if (choice === "shop") {
+      await merchantShop(hero);
     } else if (choice === "train") {
       await trainingGrounds(hero);
     } else if (choice === "rest") {
