@@ -1,5 +1,7 @@
 import { Character } from "./Character.js";
 import { Skill } from "./Skill.js";
+import { Inventory } from "./Inventory.js";
+import { Item } from "./Item.js";
 
 export abstract class Player extends Character {
   public mana: number;
@@ -9,6 +11,7 @@ export abstract class Player extends Character {
   public experience: number;
   public expToNextLevel: number;
   public skills: Skill[];
+  public inventory: Inventory;
   public abstract readonly className: string;
 
   constructor(
@@ -26,6 +29,17 @@ export abstract class Player extends Character {
     this.experience = 0;
     this.expToNextLevel = 100;
     this.skills = [];
+    this.inventory = new Inventory();
+
+    // Itens iniciais de sobrevivência
+    this.inventory.addItem(
+      new Item("Poção de Vida Menor", "Cura 45 pontos de vida", 25, "health", 45),
+      2
+    );
+    this.inventory.addItem(
+      new Item("Poção de Mana Menor", "Restaura 35 pontos de mana", 20, "mana", 35),
+      1
+    );
   }
 
   // Hook para subclasses aplicarem bônus de dano (crítico, fúria, etc.)
