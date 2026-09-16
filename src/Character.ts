@@ -1,3 +1,5 @@
+import { UI } from "./UI.js";
+
 export class Character {
   public readonly name: string;
   private health: number;
@@ -30,34 +32,24 @@ export class Character {
   public takeDamage(damage: number): void {
     const actualDamage = Math.max(1, damage - this.defense);
     this.health = Math.max(0, this.health - actualDamage);
-
-    console.log(
-      `${this.name} recebeu ${actualDamage} de dano! (vida restante: ${this.health}/${this.maxHealth})`,
-    );
-
+    UI.damage(`${this.name} sofreu ${actualDamage} de dano!  (HP: ${this.health}/${this.maxHealth})`);
     if (!this.isAlive()) {
-      console.log(`${this.name} foi derrotado!`);
+      console.log(`\n     ☠️  ${this.name} foi derrotado!`);
     }
   }
 
-  // ação de ataque
+  // ação de ataque (usada pelos inimigos — Player sobrescreve este método)
   public attack(target: Character): void {
     if (!this.isAlive()) {
-      console.log(`${this.name} não pode atacar porque está derrotado!`);
+      UI.error(`${this.name} não pode atacar — está derrotado!`);
       return;
     }
-
-    console.log(
-      `${this.name} ataca ${target.name} com força ${this.attackPower}!`,
-    );
+    UI.enemyAction(`${this.name} ataca com força brutal de ${this.attackPower}!`);
     target.takeDamage(this.attackPower);
   }
 
-  // ação de cura
+  // ação de cura (silenciosa — o chamador é responsável por exibir o feedback)
   public heal(amount: number): void {
     this.health = Math.min(this.maxHealth, this.health + amount);
-    console.log(
-      `💚 ${this.name} recuperou vida! Atual: ${this.health}/${this.maxHealth}`,
-    );
   }
 }

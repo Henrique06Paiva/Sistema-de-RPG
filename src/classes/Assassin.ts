@@ -1,5 +1,6 @@
-﻿import { Player } from "../Player.js";
+import { Player } from "../Player.js";
 import { Skill } from "../Skill.js";
+import { UI } from "../UI.js";
 
 export class Assassin extends Player {
   public readonly className = "Assassino";
@@ -14,7 +15,7 @@ export class Assassin extends Player {
   public override calculateAttackDamage(baseDamage: number): number {
     const isCritical = Math.random() < 0.35;
     if (isCritical) {
-      console.log("⚡ [GOLPE FURTIVO CRÍTICO!] Acerto fatal causando dano DOBRADO (2x)!");
+      UI.info("⚡ [GOLPE FURTIVO CRÍTICO!] Acerto fatal — dano DOBRADO (2x)!");
       return baseDamage * 2;
     }
     return baseDamage;

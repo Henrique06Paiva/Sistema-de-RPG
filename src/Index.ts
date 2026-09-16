@@ -1,4 +1,5 @@
 import { select, input } from "@inquirer/prompts";
+import { UI } from "./UI.js";
 import { Character } from "./Character.js";
 import { Player } from "./Player.js";
 import { Skill } from "./Skill.js";
@@ -70,27 +71,29 @@ function generateEnemy(floor: number): Character {
 
 // Sistema de Combate
 async function battle(player: Player, enemy: Character): Promise<boolean> {
-  console.log(`\n========================================`);
-  console.log(`⚔️ UM ${enemy.name.toUpperCase()} BLOQUEIA SEU CAMINHO! ⚔️`);
-  console.log(`========================================`);
+  UI.header("⚔️  COMBATE  ⚔️", enemy.name.toUpperCase());
+  let turnNumber = 0;
 
   while (player.isAlive() && enemy.isAlive()) {
-    console.log(
-      `\n👤 ${player.name} | HP: ${player.getHealth()}/${player.maxHealth} | MP: ${player.mana}/${player.maxMana}`,
-    );
-    console.log(
-      `👾 ${enemy.name} | HP: ${enemy.getHealth()}/${enemy.maxHealth}`,
-    );
+    turnNumber++;
+    UI.separator(`TURNO ${turnNumber}`);
+
+    console.log(`\n  👤 ${player.name} (${player.className})`);
+    console.log(UI.bar(player.getHealth(), player.maxHealth, "❤️", "HP"));
+    console.log(UI.bar(player.mana, player.maxMana, "💎", "MP"));
+    console.log(`\n  👾 ${enemy.name}`);
+    console.log(UI.bar(enemy.getHealth(), enemy.maxHealth, "❤️", "HP"));
+    console.log("");
 
     let turnEnded = false;
 
     while (!turnEnded) {
       const action = await select({
-        message: "O que você fará?",
+        message: "⚡ Escolha sua ação:",
         choices: [
-          { name: "🗡️ Ataque Básico", value: "attack" },
-          { name: "🔥 Usar Habilidade", value: "skill" },
-          { name: "🧪 Usar Item do Inventário", value: "item" },
+          { name: "🗡️  Ataque Básico       — sem custo de mana", value: "attack" },
+          { name: "✨  Usar Habilidade     — gasta mana, mais dano", value: "skill" },
+          { name: "🧪  Usar Item           — use uma poção do inventário", value: "item" },
         ],
       });
 
@@ -103,11 +106,11 @@ async function battle(player: Player, enemy: Character): Promise<boolean> {
             name: s.getDetails(),
             value: index,
           })),
-          { name: "⬅️ Voltar", value: -1 },
+          { name: "⬅️  Voltar", value: -1 },
         ];
 
         const chosenIndex = await select({
-          message: "Selecione a habilidade:",
+          message: "✨ Selecione a habilidade:",
           choices: skillChoices,
         });
 
@@ -117,20 +120,20 @@ async function battle(player: Player, enemy: Character): Promise<boolean> {
         if (success) turnEnded = true;
       } else if (action === "item") {
         if (player.inventory.isEmpty()) {
-          console.log("\n⚠️ Seu inventário está vazio!");
+          UI.warning("Seu inventário está vazio!");
           continue;
         }
 
         const itemChoices = [
           ...player.inventory.getSlots().map((slot, index) => ({
-            name: `🧪 ${slot.item.name} (x${slot.quantity}) - ${slot.item.description}`,
+            name: `🧪 ${slot.item.name} (x${slot.quantity})  —  ${slot.item.description}`,
             value: index,
           })),
-          { name: "⬅️ Voltar", value: -1 },
+          { name: "⬅️  Voltar", value: -1 },
         ];
 
         const chosenItemIndex = await select({
-          message: "Escolha um item para usar:",
+          message: "🎒 Escolha um item para usar:",
           choices: itemChoices,
         });
 
@@ -142,20 +145,28 @@ async function battle(player: Player, enemy: Character): Promise<boolean> {
     }
 
     if (enemy.isAlive()) {
-      console.log(`\n--- Turno de ${enemy.name} ---`);
+      UI.separator("Turno do Inimigo");
       enemy.attack(player);
     }
   }
 
   if (player.isAlive()) {
-    console.log(`\n🎉 Vitória gloriosa contra ${enemy.name}!`);
     const expReward = 40 + dungeonFloor * 10;
     const goldReward = 20 + dungeonFloor * 8;
+    UI.box([
+      "🎉  VITÓRIA GLORIOSA!",
+      `${enemy.name} foi derrotado!`,
+      `Recompensas: +${expReward} ⭐ XP  e  +${goldReward} 💰 Ouro`,
+    ]);
     player.gainReward(expReward, goldReward);
     dungeonFloor++;
     return true;
   } else {
-    console.log(`\n💀 Você foi derrotado... O seu legado termina aqui.`);
+    UI.box([
+      "💀  DERROTA...",
+      `${player.name} sucumbiu diante de ${enemy.name}.`,
+      "Voltando ao acampamento...",
+    ]);
     return false;
   }
 }
@@ -165,29 +176,36 @@ async function trainingGrounds(player: Player) {
   let inTraining = true;
 
   while (inTraining) {
-    console.log(
-      `\n🏛️ --- ÁREA DE TREINAMENTO (Seu Ouro: 💰 ${player.gold}) ---`,
-    );
+    UI.header("🏛️  ÁREA DE TREINAMENTO");
+    console.log(`\n  💰 Ouro disponível: ${player.gold}\n`);
     const choice = await select({
       message: "Como deseja aprimorar suas habilidades?",
       choices: [
-        { name: "⚡ Upar Habilidade Atual com Ouro", value: "upgrade" },
-        { name: "📚 Aprender Nova Habilidade", value: "learn" },
-        { name: "⬅️ Voltar ao Acampamento", value: "back" },
+        {
+          name: "⚡ Treinar Habilidade Existente",
+          value: "upgrade",
+          description: "Pague ouro ao Mestre para subir o nível de uma habilidade já aprendida",
+        },
+        {
+          name: "📚 Aprender Nova Habilidade",
+          value: "learn",
+          description: `Aprenda novas técnicas exclusivas da classe ${player.className}`,
+        },
+        { name: "⬅️  Voltar ao Acampamento", value: "back" },
       ],
     });
 
     if (choice === "upgrade") {
       const choices = [
         ...player.skills.map((s, index) => ({
-          name: `${s.name} (Nv. ${s.level} ➔ ${s.level + 1}) | Maestria: ${s.mastery}/${s.masteryToNextLevel} | Custo: 💰 ${s.upgradeCost} Ouro`,
+          name: `${s.name}  (Nv. ${s.level} → ${s.level + 1})  |  Maestria: ${s.mastery}/${s.masteryToNextLevel}  |  💰 ${s.upgradeCost} Ouro`,
           value: index,
         })),
-        { name: "⬅️ Voltar", value: -1 },
+        { name: "⬅️  Voltar", value: -1 },
       ];
 
       const selectedSkillIndex = await select({
-        message: "Escolha qual habilidade quer treinar:",
+        message: "⚡ Escolha qual habilidade quer treinar:",
         choices,
       });
 
@@ -197,9 +215,7 @@ async function trainingGrounds(player: Player) {
           player.gold -= skill.upgradeCost;
           skill.trainWithMaster();
         } else {
-          console.log(
-            `\n❌ Ouro insuficiente! Você tem 💰 ${player.gold}, mas precisa de 💰 ${skill.upgradeCost}.`
-          );
+          UI.error(`Ouro insuficiente! Você tem 💰 ${player.gold}, mas precisa de 💰 ${skill.upgradeCost}.`);
         }
       }
     } else if (choice === "learn") {
@@ -210,22 +226,20 @@ async function trainingGrounds(player: Player) {
       );
 
       if (unlearnedSkills.length === 0) {
-        console.log(
-          `\n✨ Você já dominou todas as técnicas disponíveis para a classe ${player.className}!`
-        );
+        UI.success(`Você já dominou todas as técnicas disponíveis para a classe ${player.className}!`);
         continue;
       }
 
       const choices = [
         ...unlearnedSkills.map((s, index) => ({
-          name: `[${s.name}] | Dano: ${s.damageMultiplier}x | Custo: ${s.manaCost} MP | Preço: 💰 ${s.upgradeCost} Ouro`,
+          name: `✨ ${s.name}  |  Dano: ${s.damageMultiplier}x  |  Custo: ${s.manaCost} MP  |  💰 ${s.upgradeCost} Ouro`,
           value: index,
         })),
-        { name: "⬅️ Voltar", value: -1 },
+        { name: "⬅️  Voltar", value: -1 },
       ];
 
       const selectedIndex = await select({
-        message: "Escolha qual habilidade quer aprender:",
+        message: "📚 Escolha qual habilidade quer aprender:",
         choices,
       });
 
@@ -235,9 +249,7 @@ async function trainingGrounds(player: Player) {
           player.gold -= skillTemplate.upgradeCost;
           player.learnSkill(skillTemplate.clone());
         } else {
-          console.log(
-            `\n❌ Ouro insuficiente! Preço: 💰 ${skillTemplate.upgradeCost}, Seu saldo: 💰 ${player.gold}.`
-          );
+          UI.error(`Ouro insuficiente! Preço: 💰 ${skillTemplate.upgradeCost}  |  Seu saldo: 💰 ${player.gold}`);
         }
       }
     } else if (choice === "back") {
@@ -251,19 +263,21 @@ async function merchantShop(player: Player) {
   let shopping = true;
 
   while (shopping) {
-    console.log(`\n🛒 --- TENDA DO MERCADOR (Seu Ouro: 💰 ${player.gold}) ---`);
-    console.log(`"Bem-vindo, aventureiro! Tenho os melhores elixires e poções para sua jornada."`);
+    UI.header("🛒  TENDA DO MERCADOR");
+    console.log(`\n  💰 Ouro disponível: ${player.gold}`);
+    UI.info(`"Bem-vindo, aventureiro! Tenho os melhores elixires para sua jornada!"`);
+    console.log("");
 
     const choices = [
       ...availableItemsToBuy.map((item, index) => ({
-        name: `🧪 ${item.name} | ${item.description} | Preço: 💰 ${item.price} Ouro`,
+        name: `🧪 ${item.name}  —  ${item.description}  |  💰 ${item.price} Ouro`,
         value: index,
       })),
-      { name: "⬅️ Sair da Loja", value: -1 },
+      { name: "⬅️  Sair da Loja", value: -1 },
     ];
 
     const chosenIndex = await select({
-      message: "O que deseja comprar?",
+      message: "🛒 O que deseja comprar?",
       choices,
     });
 
@@ -276,67 +290,84 @@ async function merchantShop(player: Player) {
     if (player.gold >= selectedItem.price) {
       player.gold -= selectedItem.price;
       player.inventory.addItem(selectedItem, 1);
-      console.log(`💰 Você pagou ${selectedItem.price} de ouro. Saldo restante: 💰 ${player.gold}`);
+      UI.success(`Compra realizada! Você pagou 💰 ${selectedItem.price}.  Saldo restante: 💰 ${player.gold}`);
     } else {
-      console.log(`\n❌ Ouro insuficiente! O item custa 💰 ${selectedItem.price}, mas você só tem 💰 ${player.gold}.`);
+      UI.error(`Ouro insuficiente! O item custa 💰 ${selectedItem.price}, mas você só tem 💰 ${player.gold}.`);
     }
   }
 }
 
 // Menu da Ficha do Personagem
 function showCharacterSheet(player: Player) {
-  console.log(`\n================ FICHA DO HERÓI ================`);
-  console.log(`👤 Nome: ${player.name} | Classe: ${player.className}`);
-  console.log(`✨ Passiva: ${player.getPassiveDescription()}`);
-  console.log(`⭐ Nível: ${player.level} (XP: ${player.experience}/${player.expToNextLevel})`);
-  console.log(`💚 Vida Máxima: ${player.maxHealth} (Atual: ${player.getHealth()})`);
-  console.log(`🔷 Mana Máxima: ${player.maxMana} (Atual: ${player.mana})`);
-  console.log(`⚔️ Poder de Ataque: ${player.attackPower}`);
-  console.log(`🛡️ Defesa: ${player.defense}`);
-  console.log(`💰 Ouro: ${player.gold}`);
-  console.log(`\n📖 Habilidades Dominadas:`);
-  player.skills.forEach((s) => console.log(`   - ${s.getDetails()}`));
-  console.log(`\n🎒 Mochila / Inventário:`);
-  if (player.inventory.isEmpty()) {
-    console.log(`   (Mochila vazia)`);
+  UI.header("📜  FICHA DO HERÓI", `${player.name}  —  ${player.className}`);
+
+  console.log(`\n  ✨ Passiva: ${player.getPassiveDescription()}\n`);
+
+  console.log(UI.bar(player.getHealth(), player.maxHealth, "❤️", "HP"));
+  console.log(UI.bar(player.mana, player.maxMana, "💎", "MP"));
+  console.log(UI.bar(player.experience, player.expToNextLevel, "⭐", "XP"));
+
+  console.log(`\n  📊 Nível:             ${player.level}`);
+  console.log(`  ⚔️  Poder de Ataque: ${player.attackPower}`);
+  console.log(`  🛡️  Defesa:          ${player.defense}`);
+  console.log(`  💰 Ouro:             ${player.gold}`);
+
+  UI.separator("Habilidades");
+  if (player.skills.length === 0) {
+    UI.info("Nenhuma habilidade aprendida ainda.");
   } else {
-    player.inventory.getSlots().forEach((slot) => {
-      console.log(`   - 🧪 ${slot.item.name} (x${slot.quantity}) [${slot.item.description}]`);
+    player.skills.forEach((s) => {
+      console.log(`\n  📖 ${s.name}  (Nível ${s.level})`);
+      console.log(`      Dano: ${s.damageMultiplier}x  |  Custo: ${s.manaCost} MP  |  Maestria: ${s.mastery}/${s.masteryToNextLevel}`);
     });
   }
-  console.log(`=================================================\n`);
+
+  UI.separator("Inventário");
+  if (player.inventory.isEmpty()) {
+    UI.info("Mochila vazia.");
+  } else {
+    player.inventory.getSlots().forEach((slot) => {
+      console.log(`  🧪 ${slot.item.name}  (x${slot.quantity})  —  ${slot.item.description}`);
+    });
+  }
+
+  console.log("");
+  UI.separator();
 }
 
 // Criação de Personagem com Escolha de Classe
 async function createCharacter(): Promise<Player> {
-  console.clear();
-  console.log("==========================================");
-  console.log("       🏰 CRIAÇÃO DE PERSONAGEM 🏰        ");
-  console.log("==========================================\n");
+  UI.clear();
+  UI.header("🏰  CRIAÇÃO DE PERSONAGEM  🏰", "Escolha seu destino, aventureiro");
+  console.log("");
 
   const name = await input({
-    message: "Digite o nome do seu aventureiro:",
+    message: "  ✏️  Nome do seu aventureiro:",
     default: "Aventureiro",
   });
 
   const chosenClass = await select({
-    message: "Escolha a sua classe de combate:",
+    message: "  🎭 Escolha sua classe de combate:",
     choices: [
       {
-        name: "🛡️ Tanque     | Vida: 160 | Defesa: 9 | Passiva: Reduz 20% do dano sofrido",
+        name: "🛡️  Tanque",
         value: "tank",
+        description: "Vida: 160 | Defesa: 9 | Passiva: Reduz 20% do dano sofrido (Pele de Ferro)",
       },
       {
-        name: "⚔️ Guerreiro  | Vida: 120 | Dano: 20  | Passiva: +50% de dano se vida < 50% (Fúria)",
+        name: "⚔️  Guerreiro",
         value: "warrior",
+        description: "Vida: 120 | Dano: 20 | Passiva: +50% de dano quando HP < 50% (Fúria de Batalha)",
       },
       {
-        name: "🧙 Mago       | Mana: 120 | Dano: 22  | Passiva: +25% de dano mágico geral",
+        name: "🧙  Mago",
         value: "mage",
+        description: "Mana: 120 | Dano: 22 | Passiva: +25% de dano em todas as habilidades (Maestria Arcana)",
       },
       {
-        name: "🗡️ Assassino  | Dano: 22  | Defesa: 4 | Passiva: 35% de chance de Dano Crítico (2x)",
+        name: "🗡️  Assassino",
         value: "assassin",
+        description: "Dano: 22 | Defesa: 4 | Passiva: 35% de chance de Golpe Crítico 2x (Golpe Furtivo)",
       },
     ],
   });
@@ -357,10 +388,8 @@ async function createCharacter(): Promise<Player> {
 
 // Loop Principal do Jogo
 async function main() {
-  console.clear();
-  console.log("==========================================");
-  console.log("       🏰 BEM-VINDO AO RPG EM TYPESCRIPT 🏰   ");
-  console.log("==========================================\n");
+  UI.clear();
+  UI.header("⚔️  RPG EM TYPESCRIPT  ⚔️", "Uma jornada épica te aguarda...");
 
   let hero: Player | null = null;
 
@@ -368,12 +397,28 @@ async function main() {
   while (!hero) {
     if (SaveManager.hasSaves()) {
       const startChoice = await select({
-        message: "Menu Principal:",
+        message: "📋 Menu Principal:",
         choices: [
-          { name: "📂 Carregar Personagem Salvo", value: "load" },
-          { name: "✨ Novo Jogo (Criar novo personagem)", value: "new" },
-          { name: "🗑️ Excluir um Save", value: "delete" },
-          { name: "🚪 Fechar Jogo", value: "exit" },
+          {
+            name: "📂 Carregar Personagem Salvo",
+            value: "load",
+            description: "Retomar a aventura de um herói salvo anteriormente",
+          },
+          {
+            name: "✨ Novo Jogo",
+            value: "new",
+            description: "Criar um novo herói e começar do zero",
+          },
+          {
+            name: "🗑️  Excluir um Save",
+            value: "delete",
+            description: "Apagar permanentemente um save existente",
+          },
+          {
+            name: "🚪 Fechar Jogo",
+            value: "exit",
+            description: "Encerrar o RPG",
+          },
         ],
       });
 
@@ -381,14 +426,14 @@ async function main() {
         const saves = SaveManager.listSaves();
         const loadChoices = [
           ...saves.map((s) => ({
-            name: s.summary,
+            name: `📂 ${s.summary}`,
             value: s.fileName,
           })),
-          { name: "⬅️ Voltar", value: "back" },
+          { name: "⬅️  Voltar", value: "back" },
         ];
 
         const selectedFile = await select({
-          message: "Escolha qual herói deseja carregar:",
+          message: "📂 Escolha qual herói deseja carregar:",
           choices: loadChoices,
         });
 
@@ -403,23 +448,23 @@ async function main() {
         const saves = SaveManager.listSaves();
         const deleteChoices = [
           ...saves.map((s) => ({
-            name: `🗑️ ${s.summary}`,
+            name: `🗑️  ${s.summary}`,
             value: s.fileName,
           })),
-          { name: "⬅️ Voltar", value: "back" },
+          { name: "⬅️  Voltar", value: "back" },
         ];
 
         const fileToDelete = await select({
-          message: "Escolha qual save deseja EXCLUIR permanentemente:",
+          message: "⚠️  Escolha qual save deseja EXCLUIR permanentemente:",
           choices: deleteChoices,
         });
 
         if (fileToDelete !== "back") {
           const confirm = await select({
-            message: `Tem certeza que deseja apagar o save [${fileToDelete}]? Esta ação não pode ser desfeita!`,
+            message: `⚠️  Confirmar exclusão do save [${fileToDelete}]?`,
             choices: [
-              { name: "❌ Sim, apagar save", value: true },
-              { name: "⬅️ Não, cancelar", value: false },
+              { name: "🗑️  Sim, apagar permanentemente", value: true },
+              { name: "⬅️  Não, cancelar", value: false },
             ],
           });
 
@@ -430,7 +475,7 @@ async function main() {
       } else if (startChoice === "new") {
         hero = await createCharacter();
       } else if (startChoice === "exit") {
-        console.log("\nAté logo!");
+        UI.box(["🚪 Até logo!", "Volte quando quiser uma nova aventura... ⚔️"]);
         return;
       }
     } else {
@@ -438,27 +483,58 @@ async function main() {
     }
   }
 
-  console.log(`\n✨ Que sua jornada seja gloriosa, ${hero.name} o ${hero.className}!\n`);
+  UI.box([
+    `✨ Bem-vindo, ${hero.name} o ${hero.className}!`,
+    "Que sua jornada seja épica e gloriosa!",
+  ]);
 
   let playing = true;
   while (playing && hero.isAlive()) {
-    console.log(
-      `\n🏕️ [ACAMPAMENTO - Andar da Masmorra: ${dungeonFloor}]`
-    );
-    console.log(
-      `Status: HP ${hero.getHealth()}/${hero.maxHealth} | MP ${hero.mana}/${hero.maxMana} | Ouro: 💰 ${hero.gold}`
-    );
+    UI.header("🏕️  ACAMPAMENTO", `Andar da Masmorra: ${dungeonFloor}`);
+    console.log(UI.bar(hero.getHealth(), hero.maxHealth, "❤️", "HP"));
+    console.log(UI.bar(hero.mana, hero.maxMana, "💎", "MP"));
+    console.log(UI.bar(hero.experience, hero.expToNextLevel, "⭐", "XP"));
+    console.log(`\n  💰 Ouro: ${hero.gold}  |  📊 Nível: ${hero.level}  |  🏹 ${hero.className}`);
+    console.log("");
 
     const choice = await select({
-      message: "O que deseja fazer no acampamento?",
+      message: "⚔️  O que deseja fazer?",
       choices: [
-        { name: "🌲 Explorar a Masmorra (Batalhar)", value: "explore" },
-        { name: "🛒 Tenda do Mercador (Comprar Poções)", value: "shop" },
-        { name: "🏛️ Área de Treinamento (Habilidades)", value: "train" },
-        { name: "🏕️ Descansar na Fogueira (Restaurar HP/MP)", value: "rest" },
-        { name: "📜 Ver Ficha do Herói", value: "stats" },
-        { name: "💾 Salvar Jogo", value: "save" },
-        { name: "🚪 Sair do Jogo", value: "quit" },
+        {
+          name: "⚔️  Explorar a Masmorra",
+          value: "explore",
+          description: `Avançar para o Andar ${dungeonFloor} e enfrentar inimigos`,
+        },
+        {
+          name: "🛒 Tenda do Mercador",
+          value: "shop",
+          description: "Comprar poções e itens de cura com ouro",
+        },
+        {
+          name: "🏛️  Área de Treinamento",
+          value: "train",
+          description: "Aprender e aprimorar habilidades com o Mestre",
+        },
+        {
+          name: "🔥 Descansar na Fogueira",
+          value: "rest",
+          description: "Restaurar HP e MP completamente (gratuito)",
+        },
+        {
+          name: "📜 Ficha do Herói",
+          value: "stats",
+          description: "Ver atributos, habilidades e inventário",
+        },
+        {
+          name: "💾 Salvar Jogo",
+          value: "save",
+          description: "Salvar o progresso atual neste slot",
+        },
+        {
+          name: "🚪 Sair do Jogo",
+          value: "quit",
+          description: "Encerrar a sessão (com opção de salvar)",
+        },
       ],
     });
 
@@ -477,10 +553,10 @@ async function main() {
       SaveManager.save(hero, dungeonFloor);
     } else if (choice === "quit") {
       const wantSave = await select({
-        message: "Deseja salvar o progresso antes de sair?",
+        message: "💾 Deseja salvar o progresso antes de sair?",
         choices: [
-          { name: "Sim, salvar e sair", value: true },
-          { name: "Não, sair sem salvar", value: false },
+          { name: "💾 Sim, salvar e sair", value: true },
+          { name: "🚪 Não, sair sem salvar", value: false },
         ],
       });
 
@@ -488,7 +564,7 @@ async function main() {
         SaveManager.save(hero, dungeonFloor);
       }
 
-      console.log("\nAté a próxima aventura! Obrigado por jogar!");
+      UI.box(["🚪 Até a próxima aventura!", "Obrigado por jogar! ⚔️"]);
       playing = false;
     }
   }

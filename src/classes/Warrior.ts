@@ -1,5 +1,6 @@
-﻿import { Player } from "../Player.js";
+import { Player } from "../Player.js";
 import { Skill } from "../Skill.js";
+import { UI } from "../UI.js";
 
 export class Warrior extends Player {
   public readonly className = "Guerreiro";
@@ -15,7 +16,7 @@ export class Warrior extends Player {
     const isEnraged = this.getHealth() < this.maxHealth * 0.5;
     if (isEnraged) {
       const bonus = Math.round(baseDamage * 0.5);
-      console.log("🩸 [FÚRIA DE BATALHA!] Vida abaixo de 50%! Dano aumentado em +50%!");
+      UI.info("🩸 [FÚRIA DE BATALHA!] Vida crítica! Dano aumentado em +50%!");
       return baseDamage + bonus;
     }
     return baseDamage;

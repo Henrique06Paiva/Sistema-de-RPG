@@ -1,4 +1,5 @@
 import { Player } from "./Player.js";
+import { UI } from "./UI.js";
 
 export type ItemType = "health" | "mana" | "buff";
 
@@ -27,21 +28,21 @@ export class Item {
   public use(target: Player): boolean {
     if (this.type === "health") {
       if (target.getHealth() >= target.maxHealth) {
-        console.log(`⚠️ Sua vida já está cheia! O item não foi consumido.`);
+        UI.warning("Sua vida já está cheia! O item não foi consumido.");
         return false;
       }
       target.heal(this.effectValue);
-      console.log(`🧪 ${target.name} usou [${this.name}] e recuperou ${this.effectValue} de vida!`);
+      UI.heal(`${target.name} usou [${this.name}] e recuperou ${this.effectValue} de vida!  (HP: ${target.getHealth()}/${target.maxHealth})`);
       return true;
     }
 
     if (this.type === "mana") {
       if (target.mana >= target.maxMana) {
-        console.log(`⚠️ Sua mana já está cheia! O item não foi consumido.`);
+        UI.warning("Sua mana já está cheia! O item não foi consumido.");
         return false;
       }
       target.mana = Math.min(target.maxMana, target.mana + this.effectValue);
-      console.log(`🧪 ${target.name} usou [${this.name}] e restaurou ${this.effectValue} de mana! (Atual: ${target.mana}/${target.maxMana})`);
+      UI.heal(`${target.name} usou [${this.name}] e restaurou ${this.effectValue} de mana!  (MP: ${target.mana}/${target.maxMana})`);
       return true;
     }
 

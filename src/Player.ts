@@ -2,6 +2,7 @@ import { Character } from "./Character.js";
 import { Skill } from "./Skill.js";
 import { Inventory } from "./Inventory.js";
 import { Item } from "./Item.js";
+import { UI } from "./UI.js";
 
 export abstract class Player extends Character {
   public mana: number;
@@ -49,22 +50,19 @@ export abstract class Player extends Character {
 
   public override attack(target: Character): void {
     if (!this.isAlive()) {
-      console.log(`❌ ${this.name} está inconsciente.`);
+      UI.error(`${this.name} está inconsciente.`);
       return;
     }
-
     const damage = this.calculateAttackDamage(this.attackPower);
-    console.log(`⚔️ ${this.name} ataca ${target.name} com força ${damage}!`);
+    UI.playerAction(`${this.name} golpeia ${target.name} com força ${damage}!`);
     target.takeDamage(damage);
   }
 
   public gainReward(exp: number, gold: number): void {
     this.gold += gold;
     this.experience += exp;
-    console.log(`\n💰 Você ganhou ${gold} de ouro! (Total: ${this.gold})`);
-    console.log(
-      `⭐ Você ganhou ${exp} de XP! (${this.experience}/${this.expToNextLevel})`
-    );
+    UI.success(`+${gold} 💰 ouro ganhos!  (Total: ${this.gold})`);
+    UI.info(`+${exp} ⭐ XP ganhos!  (${this.experience}/${this.expToNextLevel})`);
 
     while (this.experience >= this.expToNextLevel) {
       this.levelUp();
@@ -78,18 +76,22 @@ export abstract class Player extends Character {
     this.maxMana += 10;
     this.mana = this.maxMana;
     this.heal(this.maxHealth);
-    console.log(`\n🌟 LEVEL UP! ${this.name} alcançou o Nível ${this.level}!`);
+    UI.box([
+      `🌟  LEVEL UP!  Nível ${this.level} alcançado!`,
+      `❤️  HP e 💎 MP completamente restaurados!`,
+      `⭐  Próximo nível em: ${this.expToNextLevel} XP`,
+    ]);
   }
 
   public useSkill(skillIndex: number, target: Character): boolean {
     const skill = this.skills[skillIndex];
     if (!skill) {
-      console.log("❌ Habilidade inválida!");
+      UI.error("Habilidade inválida!");
       return false;
     }
 
     if (this.mana < skill.manaCost) {
-      console.log(`⚠️ Mana insuficiente! (${this.mana}/${skill.manaCost})`);
+      UI.warning(`Mana insuficiente! Você tem ${this.mana} MP, mas a habilidade custa ${skill.manaCost} MP.`);
       return false;
     }
 
@@ -97,9 +99,7 @@ export abstract class Player extends Character {
     const baseSkillDamage = Math.round(this.attackPower * skill.damageMultiplier);
     const finalDamage = this.calculateAttackDamage(baseSkillDamage);
 
-    console.log(
-      `\n🔥 ${this.name} usa [${skill.name} Nv.${skill.level}] causando ${finalDamage} de dano! (MP: ${this.mana}/${this.maxMana})`
-    );
+    UI.playerAction(`${this.name} usa ✨ ${skill.name} Nv.${skill.level} ✨  causando ${finalDamage} de dano!  (MP: ${this.mana}/${this.maxMana})`);
 
     target.takeDamage(finalDamage);
     skill.recordUsage();
@@ -110,20 +110,20 @@ export abstract class Player extends Character {
   public rest(): void {
     this.heal(this.maxHealth);
     this.mana = this.maxMana;
-    console.log(
-      `\n🏕️ ${this.name} descansou confortavelmente junto à fogueira.`
-    );
-    console.log(`💚 Vida e 🔷 Mana totalmente restauradas!`);
+    UI.box([
+      `🔥 ${this.name} descansou na fogueira do acampamento.`,
+      `❤️  HP e 💎 MP restaurados completamente!`,
+    ]);
   }
 
   public learnSkill(newSkill: Skill): void {
     const alreadyLearned = this.skills.some((s) => s.name === newSkill.name);
     if (alreadyLearned) {
-      console.log(`⚠️ Você já domina a técnica [${newSkill.name}]!`);
+      UI.warning(`Você já domina a técnica [${newSkill.name}]!`);
       return;
     }
     this.skills.push(newSkill);
-    console.log(`\n✨ Você aprendeu uma nova habilidade: [${newSkill.name}]!`);
+    UI.success(`Nova habilidade aprendida: ✨ ${newSkill.name} ✨`);
   }
 
   public abstract getPassiveDescription(): string;

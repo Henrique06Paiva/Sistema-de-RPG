@@ -1,3 +1,5 @@
+import { UI } from "./UI.js";
+
 export class Skill {
   public readonly name: string;
   public level: number;
@@ -30,19 +32,16 @@ export class Skill {
   // Registra o uso da habilidade durante a batalha
   public recordUsage(): void {
     this.mastery++;
-    console.log(
-      `📖 Prática com [${this.name}]: ${this.mastery}/${this.masteryToNextLevel} usos.`
-    );
-
+    UI.info(`Maestria em [${this.name}]: ${this.mastery}/${this.masteryToNextLevel} usos para o próximo nível.`);
     if (this.mastery >= this.masteryToNextLevel) {
-      console.log(`✨ Você dominou melhor essa técnica através da prática!`);
+      UI.success(`Você aperfeiçoou [${this.name}] com a prática!`);
       this.levelUp();
     }
   }
 
   // Treinar pagando o mestre de habilidades
   public trainWithMaster(): void {
-    console.log(`\n🎓 Você treinou com o Mestre e aprimorou a técnica [${this.name}]!`);
+    UI.success(`Treino com o Mestre concluído! [${this.name}] aprimorada!`);
     this.levelUp();
   }
 
@@ -53,16 +52,11 @@ export class Skill {
     this.masteryToNextLevel = Math.round(this.masteryToNextLevel * 1.8);
     this.damageMultiplier = Number((this.damageMultiplier + 0.25).toFixed(2));
     this.upgradeCost = Math.round(this.upgradeCost * 1.5);
-
-    console.log(
-      `🎉 Habilidade [${this.name}] subiu para o NÍVEL ${this.level}!`
-    );
-    console.log(
-      `💥 Multiplicador de dano aumentado para: ${this.damageMultiplier}x`
-    );
-    console.log(
-      `🎯 Próximo nível exigirá: ${this.masteryToNextLevel} usos ou 💰 ${this.upgradeCost} Ouro.\n`
-    );
+    UI.box([
+      `🎉  [${this.name}] subiu para o NÍVEL ${this.level}!`,
+      `💥  Multiplicador de dano: ${this.damageMultiplier}x`,
+      `🎯  Próximo nível: ${this.masteryToNextLevel} usos  ou  💰 ${this.upgradeCost} Ouro`,
+    ]);
   }
 
   // Cria uma cópia independente (clone) para quando o jogador comprar uma skill da loja

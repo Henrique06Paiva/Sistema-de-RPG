@@ -1,5 +1,6 @@
-﻿import { Player } from "../Player.js";
+import { Player } from "../Player.js";
 import { Skill } from "../Skill.js";
+import { UI } from "../UI.js";
 
 export class Tank extends Player {
   public readonly className = "Tanque";
@@ -13,7 +14,7 @@ export class Tank extends Player {
   // Passiva: Pele de Ferro (reduz 20% do dano recebido)
   public override takeDamage(damage: number): void {
     const reducedDamage = Math.max(1, Math.round(damage * 0.8));
-    console.log("🛡️ [PELE DE FERRO] O escudo e armadura pesada absorveram 20% do impacto!");
+    UI.info("🛡️ [PELE DE FERRO] Armadura pesada absorveu 20% do impacto!");
     super.takeDamage(reducedDamage);
   }
 
