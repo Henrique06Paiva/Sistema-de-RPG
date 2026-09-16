@@ -3,17 +3,35 @@ import { Character } from "./Character.js";
 import { Player } from "./Player.js";
 import { Skill } from "./Skill.js";
 import { Item } from "./Item.js";
+import { SaveManager } from "./SaveManager.js";
 import { Warrior } from "./classes/Warrior.js";
 import { Mage } from "./classes/Mage.js";
 import { Tank } from "./classes/Tank.js";
 import { Assassin } from "./classes/Assassin.js";
 
-// Habilidades disponíveis no Mestre
-const availableSkillsToBuy = [
-  new Skill("Bola de Fogo", 20, 2.2, 70),
-  new Skill("Golpe Devastador", 30, 3.0, 120),
-  new Skill("Ataque Rápido", 10, 1.3, 30),
-];
+// Catálogo de habilidades exclusivas por classe
+const classSkillsCatalog: Record<string, Skill[]> = {
+  Guerreiro: [
+    new Skill("Ataque Rápido", 10, 1.3, 35),
+    new Skill("Tormenta de Aço", 25, 2.4, 80),
+    new Skill("Golpe Devastador", 35, 3.2, 130),
+  ],
+  Mago: [
+    new Skill("Bola de Fogo", 20, 2.2, 60),
+    new Skill("Nevasca Congelante", 35, 2.8, 95),
+    new Skill("Meteoro Arcano", 55, 3.8, 160),
+  ],
+  Tanque: [
+    new Skill("Esmagar Escudo", 15, 1.6, 40),
+    new Skill("Bastilha Protetora", 25, 2.1, 80),
+    new Skill("Impacto Sísmico", 35, 2.7, 125),
+  ],
+  Assassino: [
+    new Skill("Ataque Rápido", 10, 1.3, 35),
+    new Skill("Lâmina Venenosa", 22, 2.3, 75),
+    new Skill("Dança das Sombras", 35, 3.4, 140),
+  ],
+};
 
 // Itens à venda na Loja do Mercador
 const availableItemsToBuy = [
@@ -185,14 +203,15 @@ async function trainingGrounds(player: Player) {
         }
       }
     } else if (choice === "learn") {
-      // Filtra habilidades que ele ainda não possui
-      const unlearnedSkills = availableSkillsToBuy.filter(
+      // Obtém apenas as habilidades da classe atual do herói
+      const classSkills = classSkillsCatalog[player.className] || [];
+      const unlearnedSkills = classSkills.filter(
         (as) => !player.skills.some((ps) => ps.name === as.name)
       );
 
       if (unlearnedSkills.length === 0) {
         console.log(
-          "\n✨ Você já aprendeu todas as habilidades disponíveis no momento!"
+          `\n✨ Você já dominou todas as técnicas disponíveis para a classe ${player.className}!`
         );
         continue;
       }
@@ -338,9 +357,88 @@ async function createCharacter(): Promise<Player> {
 
 // Loop Principal do Jogo
 async function main() {
-  const hero = await createCharacter();
+  console.clear();
+  console.log("==========================================");
+  console.log("       🏰 BEM-VINDO AO RPG EM TYPESCRIPT 🏰   ");
+  console.log("==========================================\n");
 
-  console.log(`\n✨ Bem-vindo ao mundo, ${hero.name} o ${hero.className}! Que sua jornada seja gloriosa!\n`);
+  let hero: Player | null = null;
+
+  // Menu inicial com suporte a múltiplos saves
+  while (!hero) {
+    if (SaveManager.hasSaves()) {
+      const startChoice = await select({
+        message: "Menu Principal:",
+        choices: [
+          { name: "📂 Carregar Personagem Salvo", value: "load" },
+          { name: "✨ Novo Jogo (Criar novo personagem)", value: "new" },
+          { name: "🗑️ Excluir um Save", value: "delete" },
+          { name: "🚪 Fechar Jogo", value: "exit" },
+        ],
+      });
+
+      if (startChoice === "load") {
+        const saves = SaveManager.listSaves();
+        const loadChoices = [
+          ...saves.map((s) => ({
+            name: s.summary,
+            value: s.fileName,
+          })),
+          { name: "⬅️ Voltar", value: "back" },
+        ];
+
+        const selectedFile = await select({
+          message: "Escolha qual herói deseja carregar:",
+          choices: loadChoices,
+        });
+
+        if (selectedFile !== "back") {
+          const loaded = SaveManager.load(selectedFile);
+          if (loaded) {
+            hero = loaded.player;
+            dungeonFloor = loaded.dungeonFloor;
+          }
+        }
+      } else if (startChoice === "delete") {
+        const saves = SaveManager.listSaves();
+        const deleteChoices = [
+          ...saves.map((s) => ({
+            name: `🗑️ ${s.summary}`,
+            value: s.fileName,
+          })),
+          { name: "⬅️ Voltar", value: "back" },
+        ];
+
+        const fileToDelete = await select({
+          message: "Escolha qual save deseja EXCLUIR permanentemente:",
+          choices: deleteChoices,
+        });
+
+        if (fileToDelete !== "back") {
+          const confirm = await select({
+            message: `Tem certeza que deseja apagar o save [${fileToDelete}]? Esta ação não pode ser desfeita!`,
+            choices: [
+              { name: "❌ Sim, apagar save", value: true },
+              { name: "⬅️ Não, cancelar", value: false },
+            ],
+          });
+
+          if (confirm) {
+            SaveManager.deleteSave(fileToDelete);
+          }
+        }
+      } else if (startChoice === "new") {
+        hero = await createCharacter();
+      } else if (startChoice === "exit") {
+        console.log("\nAté logo!");
+        return;
+      }
+    } else {
+      hero = await createCharacter();
+    }
+  }
+
+  console.log(`\n✨ Que sua jornada seja gloriosa, ${hero.name} o ${hero.className}!\n`);
 
   let playing = true;
   while (playing && hero.isAlive()) {
@@ -359,16 +457,14 @@ async function main() {
         { name: "🏛️ Área de Treinamento (Habilidades)", value: "train" },
         { name: "🏕️ Descansar na Fogueira (Restaurar HP/MP)", value: "rest" },
         { name: "📜 Ver Ficha do Herói", value: "stats" },
+        { name: "💾 Salvar Jogo", value: "save" },
         { name: "🚪 Sair do Jogo", value: "quit" },
       ],
     });
 
     if (choice === "explore") {
       const enemy = generateEnemy(dungeonFloor);
-      const survived = await battle(hero, enemy);
-      if (!survived) {
-        playing = false;
-      }
+      await battle(hero, enemy);
     } else if (choice === "shop") {
       await merchantShop(hero);
     } else if (choice === "train") {
@@ -377,7 +473,21 @@ async function main() {
       hero.rest();
     } else if (choice === "stats") {
       showCharacterSheet(hero);
+    } else if (choice === "save") {
+      SaveManager.save(hero, dungeonFloor);
     } else if (choice === "quit") {
+      const wantSave = await select({
+        message: "Deseja salvar o progresso antes de sair?",
+        choices: [
+          { name: "Sim, salvar e sair", value: true },
+          { name: "Não, sair sem salvar", value: false },
+        ],
+      });
+
+      if (wantSave) {
+        SaveManager.save(hero, dungeonFloor);
+      }
+
       console.log("\nAté a próxima aventura! Obrigado por jogar!");
       playing = false;
     }
