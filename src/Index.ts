@@ -540,7 +540,22 @@ async function main() {
 
     if (choice === "explore") {
       const enemy = generateEnemy(dungeonFloor);
-      await battle(hero, enemy);
+      const victory = await battle(hero, enemy);
+
+      if (!victory) {
+        // Respawn: restaura HP/MP, perde 25% do ouro, volta 3 andares
+        const goldLost = Math.floor(hero.gold * 0.25);
+        hero.gold = Math.max(0, hero.gold - goldLost);
+        dungeonFloor = Math.max(1, dungeonFloor - 3);
+        hero.heal(hero.maxHealth);
+        hero.mana = hero.maxMana;
+        UI.box([
+          "⛺ Você voltou ao acampamento...",
+          `💀 Perdeu 💰 ${goldLost} de ouro (25%)`,
+          `📍 Retornou para o Andar ${dungeonFloor}`,
+          "❤️  HP e 💎 MP restaurados!",
+        ]);
+      }
     } else if (choice === "shop") {
       await merchantShop(hero);
     } else if (choice === "train") {
